@@ -1,2 +1,6 @@
 # BouCyr.github.io
-Writings
+
+
+## Blur effects
+
+A small work
