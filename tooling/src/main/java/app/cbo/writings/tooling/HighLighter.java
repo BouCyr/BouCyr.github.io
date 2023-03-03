@@ -4,20 +4,17 @@ import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.PackageDeclaration;
+import com.github.javaparser.ast.body.BodyDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.expr.AnnotationExpr;
-import com.github.javaparser.ast.expr.BooleanLiteralExpr;
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
-import com.github.javaparser.ast.expr.NormalAnnotationExpr;
-import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.expr.*;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.List;
+import java.util.stream.IntStream;
 
 public class HighLighter {
 
@@ -44,7 +41,6 @@ public class HighLighter {
         var file = StaticJavaParser.parse(new File(filePath));
 
         try(var out = new PrintStream(new FileOutputStream(outputFile))){
-
             prepare(out);
             file.getChildNodes().forEach(firstLevel -> print(out, firstLevel));
             finish(out);
@@ -64,13 +60,17 @@ public class HighLighter {
 
         if(firstLevel instanceof PackageDeclaration){
             this.printPackage(out, firstLevel);
-            out.println("<hr/>");
+            ruling(out);
         }else if(firstLevel instanceof ImportDeclaration importDeclaration){
             this.printImport(out, importDeclaration);
         }else if(firstLevel instanceof ClassOrInterfaceDeclaration classOrInterfaceDeclaration){
-            out.println("<hr/>");
+            ruling(out);
             this.classOrInterface(out, classOrInterfaceDeclaration);
         }
+    }
+
+    private static void ruling(PrintStream out) {
+        out.println("<hr/>");
     }
 
 
@@ -83,25 +83,54 @@ public class HighLighter {
         classOrinterface.getAnnotations().forEach(annotation -> this.printAnnotation(out, annotation));
         classOrinterface.getModifiers().forEach(modifier -> this.modifier(out, modifier.toString()));
         if(classOrinterface.isInterface()){
-            keyword(out, "interface", "interface");
+            keyword(out,"interface", "interface");
         } else {
-            keyword(out, "class", "class");
+            keyword(out,"class", "class");
         }
         out.print(classOrinterface.getNameAsString() );
 
         if(classOrinterface.getExtendedTypes().isNonEmpty()){
-            keyword(out,  " extends", "extends");
+            keyword(out, " extends", "extends");
             List<String> extended = classOrinterface.getExtendedTypes().stream().map(type -> type.getName().asString()).toList();
             out.print(String.join(", ", extended));
 
         }
         if(classOrinterface.getImplementedTypes().isNonEmpty()){
-            keyword(out, " implements", "extends");
+            keyword(out," implements", "extends");
             List<String> implemented = classOrinterface.getImplementedTypes().stream().map(type -> type.getName().asString()).toList();
             out.print(String.join(", ", implemented));
 
         }
+
+        out.printf(" {%n<br/>");
+
+        ruling(out);
+        //fields
+        classOrinterface.getMembers()
+                .stream()
+                .filter(FieldDeclaration.class::isInstance)
+                .map(FieldDeclaration.class::cast)
+                .forEach(field -> this.printField(out, 1, field));
+
+        //TODO other members
+
+
+        //TODO indentation
+
+        out.printf("%n<br/> }");
     }
+
+    private void printField(PrintStream out, int indentation, FieldDeclaration field) {
+        IntStream.range(0,indentation*2).forEach(i -> out.print("&nbsp;"));
+
+        field.getModifiers().forEach(modifier -> modifier(out, modifier.toString()));
+
+        field.getVariables().forEach(v -> {
+
+        });
+        out.printf("%n<br />");
+    }
+
 
     private void printAnnotation(PrintStream out, AnnotationExpr a){
 
@@ -121,7 +150,8 @@ public class HighLighter {
                         out.print(", ");
                     }
                     var pair = normal.getPairs().get(i);
-                    out.print(pair.getName()+" = ");
+                    printVariable(out, pair.getNameAsString(), "annotationVar");
+                    out.print(" = ");
                     this.printExpression(out, pair.getValue());
                 }
             }
@@ -135,6 +165,10 @@ public class HighLighter {
         out.print("</p>");
     }
 
+    private void printVariable(PrintStream out, String name, String... context ){
+        out.print("<span class=\"variable "+String.join(" ", context)+"\">"+name+"</span>");
+    }
+
     private void printExpression(PrintStream out, Expression expr) {
         if(expr instanceof AnnotationExpr a){
             this.printAnnotation(out, a);
@@ -142,6 +176,14 @@ public class HighLighter {
             this.printString(out, stringLiteralExpr);
         }else if( expr instanceof BooleanLiteralExpr booleanLiteralExpr){
             this.printBoolean(out, booleanLiteralExpr);
+        }else if( expr instanceof DoubleLiteralExpr doubleLiteralExpr){
+            this.printNumber(out, "double", doubleLiteralExpr.getValue());
+        }else if( expr instanceof IntegerLiteralExpr integerLiteralExpr){
+            this.printNumber(out, "int", integerLiteralExpr.getValue());
+        }else if( expr instanceof LongLiteralExpr longLiteralExpr){
+            this.printNumber(out, "long", longLiteralExpr.getValue());
+        }else if( expr instanceof CharLiteralExpr charLiteralExpr){
+            this.printChar(out, charLiteralExpr);
         }else{
 
             System.err.println(expr.getClass().getSimpleName()+" : "+expr);
@@ -149,15 +191,21 @@ public class HighLighter {
         }
     }
 
+    private void printNumber(PrintStream out, String actualType, String number) {
+        out.print("<span class=\"number "+actualType+"\">"+number+"</span>");
+    }
+
     private void printBoolean(PrintStream out, BooleanLiteralExpr booleanLiteralExpr) {
         out.print("<span class=\"boolean "+booleanLiteralExpr.getValue()+"\">"+booleanLiteralExpr.getValue()+"</span>");
-        boolean b = true;
-        boolean c = false;
 
     }
 
     private void printString(PrintStream out, StringLiteralExpr stringLiteralExpr) {
         out.print("<span class=\"string\">\""+stringLiteralExpr.asString()+"\"</span>");
+    }
+
+    private void printChar(PrintStream out, CharLiteralExpr stringLiteralExpr) {
+        out.print("<span class=\"char\">'"+stringLiteralExpr.asChar()+"'</span>");
     }
 
     private void printComment(PrintStream out, ClassOrInterfaceDeclaration firstLevel) {
@@ -179,7 +227,7 @@ public class HighLighter {
     }
     private void printPackage(PrintStream out, Node firstLevel ) {
         out.print("<p class='declaration package'>");
-        keyword(out, "package", "package");
+        keyword(out,"package", "package");
         out.println(firstLevel.getChildNodes().get(0).toString()+";</p>");
     }
 
