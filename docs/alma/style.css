@@ -1,0 +1,59 @@
+
+body{
+    font-size: 250%;
+    font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+
+        transition: opacity 0.5s;
+        background: #30495f;
+}
+
+main{
+padding: 40px;
+border: 1px solid #F0F;
+}
+
+.given, input{
+    background: white;
+    display: inline-block;
+    border: 4px solid black;
+    min-width: 60px;
+    height: 60px;
+    text-align: center;
+    box-sizing: border-box;
+    padding-top: 6px;
+    border-radius: 8px;
+}
+
+input{
+    border-style: dashed;
+    font-size: inherit;
+    max-width: 60px;
+}
+input:focus{
+    border-style: dashed;
+}
+input:focus-visible{
+    outline: none;
+
+}
+.ok {
+    color: green;
+}
+
+.prev{
+    transition: opacity 0.5s;
+    opacity:0.5;
+
+    position: relative;
+    top: 0px;
+}
+.old{
+    transition: top 0.5s;
+    opacity:0;
+    position: fixed;
+    top: -150px;
+}
+
