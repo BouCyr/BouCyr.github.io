@@ -7,6 +7,8 @@ var exoHistory=[];
 var found = window.localStorage.getItem("exoHistory");
 if(found){
     exoHistory = JSON.parse(found);
+}else{
+    nextExo(null);
 }
 
 
